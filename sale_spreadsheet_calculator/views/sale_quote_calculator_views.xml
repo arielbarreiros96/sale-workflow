@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="sale_quote_calculator_view_list" model="ir.ui.view">
+        <field name="name">sale.quote.calculator.list</field>
+        <field name="model">sale.quote.calculator</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name" />
+                <field name="company_id" groups="base.group_multi_company" />
+            </list>
+        </field>
+    </record>
+
+    <record id="sale_quote_calculator_view_form" model="ir.ui.view">
+        <field name="name">sale.quote.calculator.form</field>
+        <field name="model">sale.quote.calculator</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button
+                            name="action_open_calculator"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-pencil"
+                            string="Edit"
+                            invisible="not id"
+                        />
+                    </div>
+                    <div class="oe_title">
+                        <label for="name" />
+                        <h1>
+                            <field name="name" placeholder="e.g. Window Pricing" />
+                        </h1>
+                    </div>
+                    <group>
+                        <field name="company_id" groups="base.group_multi_company" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="sale_quote_calculator_action" model="ir.actions.act_window">
+        <field name="name">Quote Calculators</field>
+        <field name="res_model">sale.quote.calculator</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('order_id', '=', False)]</field>
+    </record>
+
+    <menuitem
+        id="menu_sale_quote_calculator"
+        name="Quote Calculators"
+        parent="sale.menu_sale_config"
+        action="sale_quote_calculator_action"
+        sequence="90"
+    />
+</odoo>

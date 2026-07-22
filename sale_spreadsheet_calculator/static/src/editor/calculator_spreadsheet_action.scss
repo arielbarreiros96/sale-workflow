@@ -1,0 +1,9 @@
+// The .o_action root is laid out as a flex column by the web client
+// (control panel = fixed height, .o_content = remaining). The embedded
+// o-spreadsheet fills the content area from there.
+.o_sale_spreadsheet_calculator > .o_content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <div
+        t-name="sale_spreadsheet_calculator.CalculatorSpreadsheetAction"
+        class="o_action o_sale_spreadsheet_calculator"
+    >
+        <ControlPanel display="controlPanelDisplay">
+            <t t-set-slot="control-panel-navigation-additional">
+                <button
+                    t-if="canWrite"
+                    class="btn btn-primary"
+                    t-att-disabled="state.busy"
+                    t-on-click="onWriteToOrder"
+                >
+                    <i class="fa fa-floppy-o me-1" />Write to <t t-esc="orderName" />
+                </button>
+            </t>
+        </ControlPanel>
+        <div class="o_content">
+            <SpreadsheetComponent model="model" />
+        </div>
+    </div>
+</templates>

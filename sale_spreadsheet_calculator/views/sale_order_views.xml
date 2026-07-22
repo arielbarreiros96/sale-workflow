@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_order_form_spreadsheet_calculator" model="ir.ui.view">
+        <field name="name">sale.order.form.spreadsheet.calculator</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button
+                    name="action_open_quote_calculator"
+                    type="object"
+                    class="oe_stat_button"
+                    icon="fa-table"
+                    string="Quote Calculator"
+                    invisible="not template_calculator_id and not quote_calculator_id"
+                />
+            </xpath>
+        </field>
+    </record>
+</odoo>
