@@ -1,3 +1,3 @@
-from . import sale_quote_calculator
+from . import spreadsheet_spreadsheet
 from . import sale_order
 from . import sale_order_template

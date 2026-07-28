@@ -12,7 +12,7 @@
                     class="oe_stat_button"
                     icon="fa-table"
                     string="Quote Calculator"
-                    invisible="not template_calculator_id and not quote_calculator_id"
+                    invisible="not template_calculator_id and not calculator_spreadsheet_id"
                 />
             </xpath>
         </field>

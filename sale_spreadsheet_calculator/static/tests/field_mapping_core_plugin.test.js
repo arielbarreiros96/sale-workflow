@@ -1,22 +1,23 @@
 import * as spreadsheet from "@odoo/o-spreadsheet";
-import {afterEach, beforeEach, describe, expect, test} from "@odoo/hoot";
-import {FieldMappingCorePlugin} from "@sale_spreadsheet_calculator/field_mapping/field_mapping_core_plugin.esm";
+import {describe, expect, test} from "@odoo/hoot";
+// Side-effect import: registers the field-mapping core plugin, command types
+// and inverse commands globally (the same way the spreadsheet.o_spreadsheet
+// bundle does in the app), so the model under test picks them up.
+import "@sale_spreadsheet_calculator/field_mapping/field_mapping_registration.esm";
 import {addRows} from "@spreadsheet/../tests/helpers/commands";
 import {createModelWithDataSource} from "@spreadsheet/../tests/helpers/model";
 import {defineSpreadsheetModels} from "@spreadsheet/../tests/helpers/data";
 
-const {registries, coreTypes} = spreadsheet;
-const {corePluginRegistry, inverseCommandRegistry} = registries;
 const {toCartesian, toZone} = spreadsheet.helpers;
-
-const identity = (cmd) => cmd;
 
 defineSpreadsheetModels();
 describe.current.tags("headless");
 
-async function makeModel(mappingLines = []) {
+async function makeModel(lines = []) {
     const {model} = await createModelWithDataSource({
-        modelConfig: {custom: {mappingLines}},
+        modelConfig: {
+            custom: {saleContext: {isCalculator: true, orderId: 1, lines}},
+        },
     });
     return model;
 }
@@ -49,19 +50,6 @@ function unmap(model, xc) {
 }
 
 describe("field mapping core plugin", () => {
-    beforeEach(() => {
-        coreTypes.add("MAP_FIELD").add("UNMAP_FIELDS");
-        corePluginRegistry.add("sale_field_mapping_test", FieldMappingCorePlugin);
-        inverseCommandRegistry.add("MAP_FIELD", identity);
-        inverseCommandRegistry.add("UNMAP_FIELDS", identity);
-    });
-
-    afterEach(() => {
-        corePluginRegistry.remove("sale_field_mapping_test");
-        inverseCommandRegistry.remove("MAP_FIELD");
-        inverseCommandRegistry.remove("UNMAP_FIELDS");
-    });
-
     test("stores a mapping on a cell", async () => {
         const model = await makeModel();
         const result = mapField(model, "B2", 2, "price_unit");
@@ -114,7 +102,7 @@ describe("field mapping core plugin", () => {
         });
     });
 
-    test("resolves target line labels from the custom config", async () => {
+    test("resolves target line labels from the sale context", async () => {
         const model = await makeModel([
             {position: 1, label: "Widget"},
             {position: 2, label: "Frame"},

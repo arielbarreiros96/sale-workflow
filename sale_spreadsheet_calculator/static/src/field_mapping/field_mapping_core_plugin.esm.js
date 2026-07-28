@@ -9,20 +9,52 @@ export class FieldMappingCorePlugin extends OdooCorePlugin {
         "getFieldMapping",
         "getFieldMappingsInZone",
         "getMappingLineLabel",
+        "getSaleCalculatorContext",
+        "getSaleResId",
     ];
 
     fieldMappings = {};
 
     constructor(config) {
         super(config);
-        // Target line labels for this calculator, fetched by the editor and
-        // handed in via the model's custom config (transient, not exported).
-        this.mappingLines = config.custom.mappingLines || [];
+        // Sale context (target order id, mappable line labels, whether this
+        // spreadsheet is a calculator). Transient: never exported.
+        //
+        // Tests inject it directly via custom.saleContext. In the app it is
+        // resolved here from the spreadsheet id published on the env by the
+        // ActionSpreadsheetOca patch, using the raw (non component-bound) ORM so
+        // a late resolution after the editor closes cannot crash. The object
+        // reference is stable and filled in once the lookup resolves.
+        const custom = config.custom || {};
+        const env = custom.env;
+        this.saleContext = custom.saleContext || {
+            isCalculator: false,
+            orderId: false,
+            lines: [],
+        };
+        this.saleResId = custom.saleResId || env?.saleResId || false;
+        const orm = env?.services?.orm || custom.orm;
+        if (!custom.saleContext && this.saleResId && orm) {
+            orm.call("spreadsheet.spreadsheet", "get_sale_calculator_context", [
+                [this.saleResId],
+            ])
+                .then((context) => Object.assign(this.saleContext, context))
+                .catch(() => {});
+        }
+    }
+
+    getSaleCalculatorContext() {
+        return this.saleContext;
+    }
+
+    getSaleResId() {
+        return this.saleResId;
     }
 
     getMappingLineLabel(position) {
         return (
-            this.mappingLines.find((line) => line.position === position)?.label || ""
+            this.saleContext.lines.find((line) => line.position === position)?.label ||
+            ""
         );
     }
 

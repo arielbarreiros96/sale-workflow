@@ -39,9 +39,6 @@ class TestApplyFieldMappings(TransactionCase):
         cls.product_lines = cls.order.order_line.filtered(
             lambda line: not line.display_type
         )
-        cls.calculator = cls.env["sale.quote.calculator"].create(
-            {"order_id": cls.order.id}
-        )
 
     def test_write_value_to_line(self):
         result = self.order.apply_field_mappings(
@@ -116,12 +113,18 @@ class TestApplyFieldMappings(TransactionCase):
             )
 
 
-class TestCalculatorModel(TransactionCase):
+class TestCalculatorSpreadsheet(TransactionCase):
+    """The calculator is now a plain ``spreadsheet.spreadsheet``; this module
+    only adds the sale-specific glue (context resolution + write-back)."""
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.partner = cls.env["res.partner"].create({"name": "Test Partner"})
         cls.product = cls.env["product.product"].create({"name": "Test Product"})
+
+    def _make_spreadsheet(self):
+        return self.env["spreadsheet.spreadsheet"].create({"name": "Calculator"})
 
     def _make_template(self):
         return self.env["sale.order.template"].create(
@@ -139,15 +142,8 @@ class TestCalculatorModel(TransactionCase):
             }
         )
 
-    def test_action_open_calculator(self):
-        calculator = self.env["sale.quote.calculator"].create({})
-        action = calculator.action_open_calculator()
-        self.assertEqual(action["type"], "ir.actions.client")
-        self.assertEqual(action["tag"], "sale_spreadsheet_calculator.calculator_editor")
-        self.assertEqual(action["params"], {"calculator_id": calculator.id})
-
-    def test_get_mapping_lines_from_order(self):
-        order = self.env["sale.order"].create(
+    def _make_order(self, **vals):
+        return self.env["sale.order"].create(
             {
                 "partner_id": self.partner.id,
                 "order_line": [
@@ -155,18 +151,54 @@ class TestCalculatorModel(TransactionCase):
                     Command.create({"display_type": "line_section", "name": "S"}),
                     Command.create({"product_id": self.product.id}),
                 ],
+                **vals,
             }
         )
-        calculator = self.env["sale.quote.calculator"].create({"order_id": order.id})
-        lines = calculator.get_mapping_lines()
-        self.assertEqual([line["position"] for line in lines], [1, 2])
 
-    def test_get_mapping_lines_from_template(self):
+    def test_context_from_order(self):
+        order = self._make_order()
+        spreadsheet = self._make_spreadsheet()
+        order.calculator_spreadsheet_id = spreadsheet
+        context = spreadsheet.get_sale_calculator_context()
+        self.assertTrue(context["isCalculator"])
+        self.assertEqual(context["orderId"], order.id)
+        self.assertEqual([line["position"] for line in context["lines"]], [1, 2])
+
+    def test_context_from_template(self):
         template = self._make_template()
-        calculator = self.env["sale.quote.calculator"].create({})
-        template.quote_calculator_id = calculator
-        lines = calculator.get_mapping_lines()
-        self.assertEqual([line["position"] for line in lines], [1, 2])
+        spreadsheet = self._make_spreadsheet()
+        template.quote_calculator_id = spreadsheet
+        context = spreadsheet.get_sale_calculator_context()
+        self.assertTrue(context["isCalculator"])
+        self.assertFalse(context["orderId"])
+        self.assertEqual([line["position"] for line in context["lines"]], [1, 2])
+
+    def test_context_of_unrelated_spreadsheet(self):
+        spreadsheet = self._make_spreadsheet()
+        context = spreadsheet.get_sale_calculator_context()
+        self.assertFalse(context["isCalculator"])
+        self.assertFalse(context["orderId"])
+        self.assertEqual(context["lines"], [])
+
+    def test_write_field_mappings_to_order(self):
+        order = self._make_order()
+        product_lines = order.order_line.filtered(lambda line: not line.display_type)
+        spreadsheet = self._make_spreadsheet()
+        order.calculator_spreadsheet_id = spreadsheet
+        result = spreadsheet.write_field_mappings_to_order(
+            [{"position": 1, "field": "price_unit", "value": 250.0}]
+        )
+        self.assertEqual(result, {"updated": 1})
+        self.assertEqual(product_lines[0].price_unit, 250.0)
+
+    def test_write_field_mappings_without_order_raises(self):
+        template = self._make_template()
+        spreadsheet = self._make_spreadsheet()
+        template.quote_calculator_id = spreadsheet
+        with self.assertRaises(UserError):
+            spreadsheet.write_field_mappings_to_order(
+                [{"position": 1, "field": "price_unit", "value": 1.0}]
+            )
 
     def test_open_quote_calculator_without_template_raises(self):
         order = self.env["sale.order"].create({"partner_id": self.partner.id})
@@ -175,22 +207,40 @@ class TestCalculatorModel(TransactionCase):
 
     def test_open_quote_calculator_copies_template_calculator(self):
         template = self._make_template()
-        template.quote_calculator_id = self.env["sale.quote.calculator"].create({})
+        template.quote_calculator_id = self._make_spreadsheet()
+        order = self.env["sale.order"].create(
+            {"partner_id": self.partner.id, "sale_order_template_id": template.id}
+        )
+        action = order.action_open_quote_calculator()
+        self.assertTrue(order.calculator_spreadsheet_id)
+        self.assertNotEqual(
+            order.calculator_spreadsheet_id, template.quote_calculator_id
+        )
+        # Reuses spreadsheet_oca's own editor action.
+        self.assertEqual(action["type"], "ir.actions.client")
+        self.assertEqual(action["tag"], "action_spreadsheet_oca")
+        self.assertEqual(
+            action["params"]["spreadsheet_id"], order.calculator_spreadsheet_id.id
+        )
+
+    def test_open_quote_calculator_reuses_existing_copy(self):
+        template = self._make_template()
+        template.quote_calculator_id = self._make_spreadsheet()
         order = self.env["sale.order"].create(
             {"partner_id": self.partner.id, "sale_order_template_id": template.id}
         )
         order.action_open_quote_calculator()
-        self.assertTrue(order.quote_calculator_id)
-        self.assertEqual(order.quote_calculator_id.order_id, order)
-        self.assertNotEqual(order.quote_calculator_id, template.quote_calculator_id)
+        existing = order.calculator_spreadsheet_id
+        order.action_open_quote_calculator()
+        self.assertEqual(order.calculator_spreadsheet_id, existing)
 
     def test_changing_template_unlinks_calculator(self):
         template = self._make_template()
-        template.quote_calculator_id = self.env["sale.quote.calculator"].create({})
+        template.quote_calculator_id = self._make_spreadsheet()
         order = self.env["sale.order"].create(
             {"partner_id": self.partner.id, "sale_order_template_id": template.id}
         )
         order.action_open_quote_calculator()
-        self.assertTrue(order.quote_calculator_ids)
+        self.assertTrue(order.calculator_spreadsheet_id)
         order.sale_order_template_id = self._make_template()
-        self.assertFalse(order.quote_calculator_ids)
+        self.assertFalse(order.calculator_spreadsheet_id)

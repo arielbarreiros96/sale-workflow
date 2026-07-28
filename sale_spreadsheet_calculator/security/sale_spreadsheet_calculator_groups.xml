@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Copyright 2026 arielbarreiros96
+     License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl-3.0). -->
+<odoo noupdate="1">
+    <!-- Salespeople edit quote calculators, which are spreadsheet.spreadsheet
+         records, so they need to be spreadsheet users. Under spreadsheet_oca's
+         owner-based record rules each salesperson owns the calculators they
+         create or that get copied onto their orders. -->
+    <record id="sales_team.group_sale_salesman" model="res.groups">
+        <field
+            name="implied_ids"
+            eval="[(4, ref('spreadsheet_oca.group_user'))]"
+        />
+    </record>
+</odoo>

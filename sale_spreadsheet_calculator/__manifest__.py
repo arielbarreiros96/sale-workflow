@@ -2,29 +2,26 @@
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl-3.0).
 {
     "name": "Sale Spreadsheet Calculator",
-    "version": "19.0.1.0.0",
+    "version": "19.0.2.0.0",
     "summary": "Drive sale order line values from an embedded Odoo spreadsheet",
     "author": "arielbarreiros96, Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/sale-workflow",
     "license": "LGPL-3",
     "category": "Sales",
-    "depends": ["sale_management", "spreadsheet"],
+    "depends": ["sale_management", "spreadsheet_oca"],
     "data": [
-        "security/ir.model.access.csv",
-        "views/sale_quote_calculator_views.xml",
+        "security/sale_spreadsheet_calculator_groups.xml",
         "views/sale_order_template_views.xml",
         "views/sale_order_views.xml",
     ],
     "assets": {
         "web.assets_backend": [
-            "sale_spreadsheet_calculator/static/src/loader/calculator_spreadsheet_loader.esm.js",
-            "sale_spreadsheet_calculator/static/src/editor/calculator_spreadsheet_action.scss",
+            "sale_spreadsheet_calculator/static/src/error_handler/*.esm.js",
         ],
         "spreadsheet.o_spreadsheet": [
+            "sale_spreadsheet_calculator/static/src/oca_compat/**/*.js",
             "sale_spreadsheet_calculator/static/src/field_mapping/**/*.js",
             "sale_spreadsheet_calculator/static/src/field_mapping/**/*.xml",
-            "sale_spreadsheet_calculator/static/src/editor/calculator_spreadsheet_action.esm.js",
-            "sale_spreadsheet_calculator/static/src/editor/calculator_spreadsheet_action.xml",
         ],
         "web.assets_unit_tests": [
             "sale_spreadsheet_calculator/static/tests/**/*",

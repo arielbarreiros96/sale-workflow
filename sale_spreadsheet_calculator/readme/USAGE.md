@@ -3,7 +3,7 @@
 
 ![Upon template assignment a calculator is created](../static/description/quotation_with_attached_calculator.png)
 
-3.  Click **Write to order**. For each mapped cell the computed value is read, type-checked against the field, and written onto the line at its position; the workbook is then saved.
+3.  In the editor's top menu, click **Calculator ▸ Write to order**. For each mapped cell the computed value is read, type-checked against the field, and written onto the line at its position. The workbook itself is saved automatically as you edit.
 
 ![Writing the computed values onto the order lines](../static/description/calculator_edit_and_apply_values.png)
 

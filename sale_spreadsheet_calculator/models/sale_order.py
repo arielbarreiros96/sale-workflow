@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timedelta
 
-from odoo import Command, api, fields, models
+from odoo import Command, fields, models
 from odoo.exceptions import UserError
 
 # o-spreadsheet, like Excel, counts dates as serial days from this epoch.
@@ -74,26 +74,19 @@ class SaleOrder(models.Model):
     _inherit = "sale.order"
 
     template_calculator_id = fields.Many2one(
-        "sale.quote.calculator",
+        "spreadsheet.spreadsheet",
         string="Quote Calculator Template",
         related="sale_order_template_id.quote_calculator_id",
     )
-    quote_calculator_ids = fields.One2many(
-        "sale.quote.calculator", "order_id", string="Quote Calculators"
+    calculator_spreadsheet_id = fields.Many2one(
+        "spreadsheet.spreadsheet",
+        string="Quote Calculator",
+        copy=False,
     )
-    quote_calculator_id = fields.Many2one(
-        "sale.quote.calculator",
-        compute="_compute_quote_calculator_id",
-    )
-
-    @api.depends("quote_calculator_ids")
-    def _compute_quote_calculator_id(self):
-        for order in self:
-            order.quote_calculator_id = order.quote_calculator_ids[:1]
 
     def action_open_quote_calculator(self):
         self.ensure_one()
-        if not self.quote_calculator_id:
+        if not self.calculator_spreadsheet_id:
             if not self.template_calculator_id:
                 raise UserError(
                     self.env._(
@@ -101,8 +94,16 @@ class SaleOrder(models.Model):
                         "quotation template first."
                     )
                 )
-            self.template_calculator_id.copy({"order_id": self.id})
-        return self.quote_calculator_id.action_open_calculator()
+            # The template calculator is typically owned by a manager, so copy
+            # it as sudo; the salesperson owns the copy and can edit it.
+            copy = self.template_calculator_id.sudo().copy(
+                {
+                    "name": self.env._("%s Calculator", self.name),
+                    "owner_id": self.env.user.id,
+                }
+            )
+            self.calculator_spreadsheet_id = copy.id
+        return self.calculator_spreadsheet_id.open_spreadsheet()
 
     def write(self, vals):
         if "sale_order_template_id" in vals:
@@ -110,8 +111,8 @@ class SaleOrder(models.Model):
                 changed = (
                     vals["sale_order_template_id"] != order.sale_order_template_id.id
                 )
-                if changed and order.quote_calculator_ids:
-                    order.quote_calculator_ids.unlink()
+                if changed and order.calculator_spreadsheet_id:
+                    order.calculator_spreadsheet_id.sudo().unlink()
         return super().write(vals)
 
     def apply_field_mappings(self, mappings):
